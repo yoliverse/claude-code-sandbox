@@ -164,8 +164,8 @@ workspace with `scripts/migrate-session.sh` (run on the host):
 ```
 
 `--workspace` must be the **mount root** — the exact host dir from your
-`-v <dir>:/workspace` (e.g. if you run `-v ~/Documents/Yoliverse:/workspace`, pass
-`--workspace ~/Documents/Yoliverse`), **not** a project subfolder.
+`-v <dir>:/workspace` (e.g. with `-v ~/local-workspace:/workspace`, pass
+`--workspace ~/local-workspace`), **not** a project subfolder.
 
 It defaults to the most recent session for the current directory; `--list` shows
 ids, `--session <id>` picks one, `--source-dir` reads another project. `--dest-cwd`

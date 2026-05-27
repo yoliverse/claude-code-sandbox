@@ -37,11 +37,11 @@ Options:
   -h, --help         Show this help.
 
 Example:
-  # Mounted with `-v ~/Documents/Yoliverse:/workspace`, resume a session in the
-  # container under /workspace/YoLingo/yolingo-server:
+  # Mounted with `-v ~/local-workspace:/workspace`, resume a session in the
+  # container under /workspace/my-project:
   ./scripts/migrate-session.sh \
-    --workspace ~/Documents/Yoliverse \
-    --dest-cwd /workspace/YoLingo/yolingo-server
+    --workspace ~/local-workspace \
+    --dest-cwd /workspace/my-project
 EOF
 }
 
