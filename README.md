@@ -12,8 +12,8 @@ machine.
 - **Batteries-included toolchains** — Node (npm/pnpm/yarn/tsc) and Python (uv)
   preinstalled.
 - **Single-mount persistence** — your code and all Claude state (login, settings,
-  session history) live in one mounted `/workspace` directory and survive `--rm`
-  containers.
+  session history) live in one mounted `/workspace` directory, so they persist
+  even if the container is removed.
 - **Global guidelines** — a global `CLAUDE.md` (Karpathy's coding-agent rules) is
   seeded automatically.
 - Runs as a **non-root** user; GitHub auth and secrets stay out of the image.
@@ -32,12 +32,21 @@ machine.
 # 1. Build (the tag is just a date stamp; bump it when you change the image)
 docker build . -t claude-code-sandbox:20260302
 
-# 2. Run — mount ONE persistent workspace dir at /workspace
-docker run -it --rm \
+# 2. Run — a named container, mounting ONE persistent workspace dir at /workspace
+docker run -it --name claude-sandbox \
   --cap-add=NET_ADMIN --cap-add=NET_RAW \
   -v ~/local-workspace:/workspace \
   claude-code-sandbox:20260302 \
   bash
+```
+
+The container is kept after you exit (no `--rm`). To re-enter it later, restart
+it instead of running again (a second `docker run --name` would fail with "name
+already in use"):
+
+```bash
+docker start -ai claude-sandbox          # reattach
+docker exec -it claude-sandbox bash      # open another shell in it
 ```
 
 `CLAUDE_CONFIG_DIR` defaults to `/workspace/.claude`, so Claude's config, login,
@@ -121,8 +130,8 @@ unlocked** (check the startup output). The full firewall log is at
 The image sets `CLAUDE_CONFIG_DIR=/workspace/.claude`, where Claude Code keeps
 *everything*: `.claude.json`, `settings.json`, login, `backups/`, and `projects/`
 (session transcripts). Because that's under `/workspace`, a single
-`-v ...:/workspace` mount persists it all across `--rm` containers — including
-your login.
+`-v ...:/workspace` mount persists it all — including your login — even across a
+removed or recreated container.
 
 On start, the entrypoint seeds a default `CLAUDE.md` into `/workspace/.claude` if
 one isn't there (canonical copy: `/usr/local/share/claude-global.md`); an existing
@@ -230,7 +239,9 @@ authenticates with the built-in `GITHUB_TOKEN`.
 - **Don't mount over all of `/home/node`** — a bind mount there wipes the baked-in
   `uv`/Python (`~/.local`) and zsh setup. Mount only `/workspace`. (Linux bind
   mounts have UID-mapping caveats; on macOS it just works.)
-- **`--rm` is safe** — everything worth keeping lives in the `/workspace` mount.
+- **Reuse the named container** with `docker start -ai claude-sandbox` instead of
+  re-running `docker run` (same `--name` twice errors). `docker rm claude-sandbox`
+  to discard it — everything worth keeping lives in the `/workspace` mount anyway.
 
 ## Repository layout
 
