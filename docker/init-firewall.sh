@@ -70,6 +70,7 @@ for domain in \
     "pypi.org" \
     "files.pythonhosted.org" \
     "api.anthropic.com" \
+    "claude.ai" \
     "sentry.io" \
     "statsig.anthropic.com" \
     "statsig.com" \

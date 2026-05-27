@@ -10,7 +10,7 @@ Layout:
 - `Dockerfile` — builds the image (tooling, toolchains, global config, firewall).
 - `docker/` — files baked into the image (consumed by the Dockerfile's `COPY`s):
   - `init-firewall.sh` — the egress allowlist enforced inside the running container.
-  - `entrypoint.sh` — runs on container start; seeds the global CLAUDE.md into the config dir when missing, then `exec`s the requested command.
+  - `entrypoint.sh` — runs on container start; seeds the global CLAUDE.md into the config dir when missing, auto-runs the firewall (non-fatal; skip with `SANDBOX_SKIP_FIREWALL=1`), then `exec`s the requested command.
   - `claude-global.md` — Karpathy's coding-agent guidelines; baked in as the canonical `/usr/local/share/claude-global.md` and seeded into the config dir's `CLAUDE.md` at start by the entrypoint, so it applies to every project.
 - `scripts/` — host-side helpers (NOT in the image):
   - `migrate-session.sh` — copies a local session transcript into a mounted workspace so it can be `claude --resume`d in the container (keys it to the container working dir).
@@ -26,14 +26,15 @@ docker run -it --rm --cap-add=NET_ADMIN --cap-add=NET_RAW \
   -v ~/local-workspace:/workspace \
   claude-code-sandbox:20260302 bash
 
-# Apply the egress firewall (run once after the container starts; requires NET_ADMIN)
+# The egress firewall runs automatically on start (needs NET_ADMIN/NET_RAW).
+# To run it manually (e.g. after SANDBOX_SKIP_FIREWALL=1):
 sudo /usr/local/bin/init-firewall.sh
 
 # Python work inside the container
 uv venv && source .venv/bin/activate
 ```
 
-The container runs as the non-root `node` user. `init-firewall.sh` is the only command `node` may run as root without a password — this is wired up via `/etc/sudoers.d/node-firewall` in the Dockerfile. To apply iptables/ipset rules, the container must be started with the `NET_ADMIN` capability (e.g. `--cap-add=NET_ADMIN`); without it the firewall script cannot manipulate the network and will fail.
+The container runs as the non-root `node` user. `init-firewall.sh` is the only command `node` may run as root without a password — this is wired up via `/etc/sudoers.d/node-firewall` in the Dockerfile, and the entrypoint invokes it via `sudo` on start. To apply iptables/ipset rules, the container must be started with the `NET_ADMIN`/`NET_RAW` capabilities (e.g. `--cap-add=NET_ADMIN --cap-add=NET_RAW`); without them the firewall step warns and the container runs with egress open.
 
 ## Architecture
 
@@ -45,7 +46,7 @@ Two pieces work together:
 
   Persistence model: the image sets `ENV CLAUDE_CONFIG_DIR=/workspace/.claude` (Claude Code's config-dir override), so *all* Claude state — `.claude.json`, `settings.json`, login, `projects/` transcripts — lives under `/workspace`. A single `-v ...:/workspace` mount therefore persists everything (config + code) across `--rm` containers. Intended layout: mount a workspace dir at `/workspace` and keep repos as subfolders, working from a subfolder so `/workspace/.claude` (user config) doesn't collide with a repo's own project-level `.claude/`. Never mount over all of `/home/node` — that would shadow the image-baked `uv`/Python (`~/.local`), zsh config, etc. Because a mount can shadow the baked CLAUDE.md, the canonical copy is kept at `/usr/local/share/claude-global.md` (unshadowable) and `entrypoint.sh` seeds `CLAUDE.md` into the active config dir (`${CLAUDE_CONFIG_DIR:-~/.claude}`) on start only when absent.
 
-- **`docker/init-firewall.sh`** — enforces a default-deny egress policy. The flow is order-sensitive: it first captures and re-applies Docker's internal DNS (`127.0.0.11`) NAT rules *before* flushing everything, builds an `allowed-domains` ipset, then sets the default OUTPUT policy to DROP and only permits traffic to that set. The allowlist is GitHub's published IP ranges (fetched from `api.github.com/meta`) plus a hard-coded list of domains: the npm and yarn registries, PyPI (`pypi.org`, `files.pythonhosted.org`) for uv/pip, `api.anthropic.com`, Sentry, Statsig, and the VS Code endpoints. The script self-verifies at the end — it must *fail* to reach `example.com` and *succeed* in reaching `api.github.com`, exiting non-zero otherwise.
+- **`docker/init-firewall.sh`** — enforces a default-deny egress policy. The flow is order-sensitive: it first captures and re-applies Docker's internal DNS (`127.0.0.11`) NAT rules *before* flushing everything, builds an `allowed-domains` ipset, then sets the default OUTPUT policy to DROP and only permits traffic to that set. The allowlist is GitHub's published IP ranges (fetched from `api.github.com/meta`) plus a hard-coded list of domains: the npm and yarn registries, PyPI (`pypi.org`, `files.pythonhosted.org`) for uv/pip, `api.anthropic.com` and `claude.ai` (the latter so interactive login works behind the firewall), Sentry, Statsig, and the VS Code endpoints. The script self-verifies at the end — it must *fail* to reach `example.com` and *succeed* in reaching `api.github.com`, exiting non-zero otherwise.
 
 ## When editing the firewall
 

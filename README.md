@@ -21,9 +21,10 @@ machine.
 ## Requirements
 
 - Docker.
-- The firewall needs `--cap-add=NET_ADMIN --cap-add=NET_RAW` at `docker run` (it
-  sets iptables/ipset rules). Without them the container still runs, but
-  `init-firewall.sh` will fail.
+- The firewall runs automatically at startup and needs
+  `--cap-add=NET_ADMIN --cap-add=NET_RAW` at `docker run` (it sets iptables/ipset
+  rules). Without them the container still runs, but egress stays open and the
+  startup output warns you.
 
 ## Quick start
 
@@ -40,12 +41,14 @@ docker run -it --rm \
 ```
 
 `CLAUDE_CONFIG_DIR` defaults to `/workspace/.claude`, so Claude's config, login,
-and sessions live inside that mount automatically. Then follow **First run**.
+and sessions live inside that mount automatically. The network is **locked down
+automatically on startup** (see [Network lockdown](#network-lockdown)). Then do
+the first-run setup below.
 
 ## First run (inside the container)
 
-Do these in order. With a persistent `/workspace`, login and config carry over —
-on later runs you can skip straight to the firewall.
+On the first run, set up auth. With a persistent `/workspace`, login and config
+carry over — later runs need none of this.
 
 ### 1. Log in to Claude Code
 
@@ -57,20 +60,16 @@ prints a URL: open it on your host, authorize, and paste the code back.
 claude        # follow the prompt (or run /login in the TUI)
 ```
 
-Log in **before** the firewall — the OAuth flow reaches hosts outside the
-allowlist. Afterwards normal use only needs `api.anthropic.com` (allowlisted).
-With a persistent mount this is a **first-run-only** step.
+The auth host (`claude.ai`) is on the firewall allowlist, so login works even
+with the network locked down — the browser step happens on your host. With a
+persistent mount this is a **first-run-only** step.
 
-> Headless alternative (no browser): run `claude setup-token` on the host, then
-> start the container with `-e CLAUDE_CODE_OAUTH_TOKEN="<token>"`.
+> If login can't reach an auth host, either start the container once with
+> `-e SANDBOX_SKIP_FIREWALL=1` to log in, or use the headless path: run
+> `claude setup-token` on the host and start with
+> `-e CLAUDE_CODE_OAUTH_TOKEN="<token>"`.
 
-### 2. Lock down the network
-
-```bash
-sudo /usr/local/bin/init-firewall.sh
-```
-
-### 3. Set up GitHub & git
+### 2. Set up GitHub & git
 
 Not baked into the image (no secrets stored). Authenticate `gh` and let it
 configure git's HTTPS credentials, then set your commit identity:
@@ -82,6 +81,40 @@ gh auth login                                  # interactive
 git config --global user.name  "Your Name"
 git config --global user.email "you@example.com"
 ```
+
+## Running Claude
+
+```bash
+claude
+```
+
+Because the container's egress is restricted to an allowlist, you can safely let
+Claude run without permission prompts — the point of this sandbox, and ideal for
+unattended / "Ralph" loops:
+
+```bash
+claude --dangerously-skip-permissions
+```
+
+This bypasses **all** tool-permission checks (file edits, command execution,
+etc.). Only do it here, where the network is locked down — never on an
+unsandboxed machine with open internet access.
+
+## Network lockdown
+
+The entrypoint runs the firewall (`init-firewall.sh`) automatically on every
+start, applying a default-deny egress policy with a small allowlist: GitHub,
+npm/yarn, PyPI, the Anthropic API + `claude.ai`, and a few telemetry/VS Code
+hosts. Nothing else is reachable.
+
+It requires the container to be started with `--cap-add=NET_ADMIN
+--cap-add=NET_RAW`; without them the container still starts but **warns and runs
+unlocked** (check the startup output). The full firewall log is at
+`/tmp/init-firewall.log`.
+
+- To allow a new outbound host, add it to the domain list in
+  `docker/init-firewall.sh` and rebuild.
+- To skip lockdown for a run, start with `-e SANDBOX_SKIP_FIREWALL=1`.
 
 ## How persistence works
 
@@ -164,9 +197,10 @@ docker build . -t claude-code-sandbox:20260302 --build-arg CLAUDE_CODE_VERSION=2
 - **Don't run as root.** The image runs as the unprivileged `node` user; don't add
   `--user root`. Only `init-firewall.sh` needs root, and `node` may run just that
   via `sudo`.
-- **Apply the firewall every run** (it's runtime state, not baked in), after
-  logging in. To allow a new outbound host, add it to `docker/init-firewall.sh`
-  and rebuild.
+- **The firewall runs automatically** on every start; it needs
+  `--cap-add=NET_ADMIN --cap-add=NET_RAW` or it warns and leaves egress open.
+  To allow a new outbound host, add it to `docker/init-firewall.sh` and rebuild;
+  to skip for a run, set `-e SANDBOX_SKIP_FIREWALL=1`.
 - **Keep secrets at runtime** — pass via `-e` (`ANTHROPIC_API_KEY`, `GH_TOKEN`, …)
   or interactive login; never in the Dockerfile or committed files.
 - **Don't mount over all of `/home/node`** — a bind mount there wipes the baked-in
@@ -180,7 +214,7 @@ docker build . -t claude-code-sandbox:20260302 --build-arg CLAUDE_CODE_VERSION=2
 Dockerfile                  image definition
 docker/                     files baked into the image
 ├── entrypoint.sh             seeds the global CLAUDE.md, then runs your command
-├── init-firewall.sh          egress allowlist (run inside the container)
+├── init-firewall.sh          egress allowlist (applied automatically on start)
 └── claude-global.md          global coding-agent guidelines
 scripts/
 └── migrate-session.sh      host-side: copy a session into the workspace
