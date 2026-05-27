@@ -159,9 +159,13 @@ workspace with `scripts/migrate-session.sh` (run on the host):
 ```bash
 # from the repo whose session you want to carry over:
 ./scripts/migrate-session.sh \
-  --workspace ~/local-workspace \
+  --workspace <the same host dir you pass to -v ...:/workspace> \
   --dest-cwd /workspace/<subfolder-you-cd-into>
 ```
+
+`--workspace` must be the **mount root** — the exact host dir from your
+`-v <dir>:/workspace` (e.g. with `-v ~/local-workspace:/workspace`, pass
+`--workspace ~/local-workspace`), **not** a project subfolder.
 
 It defaults to the most recent session for the current directory; `--list` shows
 ids, `--session <id>` picks one, `--source-dir` reads another project. `--dest-cwd`
