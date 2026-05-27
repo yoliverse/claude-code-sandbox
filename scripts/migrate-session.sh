@@ -3,11 +3,12 @@
 # migrate-session.sh — copy a local Claude Code session transcript into a
 # workspace directory so it can be resumed inside the container.
 #
-# The container defaults CLAUDE_CONFIG_DIR=/workspace/.claude, so sessions live
-# at  <workspace>/.claude/projects/<key>/<session-id>.jsonl  where <key> is the
-# container working directory with every non-alphanumeric char replaced by '-'.
-# This script writes the transcript straight into the host workspace dir you
-# mount at /workspace — no running container or `docker cp` required.
+# The container sets CLAUDE_CONFIG_DIR=/workspace/.claude, so sessions live at
+#   <workspace-root>/.claude/projects/<key>/<session-id>.jsonl
+# where <workspace-root> is the host dir you bind-mount to /workspace (the mount
+# ROOT, e.g. the <dir> in `-v <dir>:/workspace`), and <key> is the container
+# working directory with every non-alphanumeric char replaced by '-'. The script
+# writes straight into that host dir — no running container or `docker cp` needed.
 #
 # Run it on the HOST (macOS/Linux), not inside the container.
 set -euo pipefail
@@ -19,7 +20,9 @@ usage() {
 Usage: migrate-session.sh --workspace DIR [options]
 
 Required:
-  --workspace DIR    Host directory you mount to /workspace in the container.
+  --workspace DIR    Host dir you bind-mount to /workspace — the MOUNT ROOT (the
+                     <dir> in `-v <dir>:/workspace`), NOT a project subfolder.
+                     The session is written under <DIR>/.claude.
 
 Options:
   --session ID|PATH  Session id, or a path to a .jsonl transcript. If a bare id,
@@ -34,10 +37,11 @@ Options:
   -h, --help         Show this help.
 
 Example:
-  # Resume this repo's session in the container under /workspace/claude-code-sandbox
+  # Mounted with `-v ~/Documents/Yoliverse:/workspace`, resume a session in the
+  # container under /workspace/YoLingo/yolingo-server:
   ./scripts/migrate-session.sh \
-    --workspace ~/local-workspace \
-    --dest-cwd /workspace/claude-code-sandbox
+    --workspace ~/Documents/Yoliverse \
+    --dest-cwd /workspace/YoLingo/yolingo-server
 EOF
 }
 
@@ -81,6 +85,10 @@ fi
 if [ ! -d "$WORKSPACE" ]; then
   echo "error: workspace dir not found: $WORKSPACE" >&2; exit 1
 fi
+if [ ! -d "$WORKSPACE/.claude" ]; then
+  echo "note: $WORKSPACE/.claude does not exist yet — double-check that --workspace is" >&2
+  echo "      the dir you bind-mount to /workspace (the mount root), not a project subfolder." >&2
+fi
 
 # Resolve the source transcript file.
 if [ -n "$SESSION" ] && [ -f "$SESSION" ]; then
@@ -97,6 +105,13 @@ if [ -z "${SRC_FILE:-}" ] || [ ! -f "$SRC_FILE" ]; then
   echo "  try '--list' to see available sessions, or pass '--session <id>'." >&2
   exit 1
 fi
+
+# The container's config dir is /workspace/.claude, so the dir you resume from
+# must be an in-container path under /workspace.
+case "$DEST_CWD" in
+  /workspace|/workspace/*) : ;;
+  *) echo "error: --dest-cwd must be an in-container path under /workspace (got: $DEST_CWD)" >&2; exit 2 ;;
+esac
 
 SESSION_ID="$(basename "$SRC_FILE" .jsonl)"
 KEY="$(encode_path "$DEST_CWD")"
