@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A self-contained Docker sandbox for running the Claude Code CLI with restricted network egress. There is no application code — the repository is the files that build and lock down the container image. "Ralph" in the image name refers to running Claude Code in an autonomous loop inside this sandbox.
+A self-contained Docker sandbox for running the Claude Code CLI with restricted network egress. There is no application code — the repository is the files that build and lock down the container image. It is built to run Claude Code unattended (e.g. in an autonomous "Ralph" loop) inside the locked-down container.
 
 Layout:
 - `Dockerfile` — builds the image (tooling, toolchains, global config, firewall).
@@ -19,12 +19,12 @@ Layout:
 
 ```bash
 # Build (tag is a date stamp; bump it when changing the image)
-docker build . -t ralph-claude-code:20260302
+docker build . -t claude-code-sandbox:20260302
 
 # Run interactively (single mount; config+sessions persist under /workspace/.claude)
 docker run -it --rm --cap-add=NET_ADMIN --cap-add=NET_RAW \
   -v ~/local-workspace:/workspace \
-  ralph-claude-code:20260302 bash
+  claude-code-sandbox:20260302 bash
 
 # Apply the egress firewall (run once after the container starts; requires NET_ADMIN)
 sudo /usr/local/bin/init-firewall.sh

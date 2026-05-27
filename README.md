@@ -1,6 +1,6 @@
 # Build image
 
-docker build . -t ralph-claude-code:20260302
+docker build . -t claude-code-sandbox:20260302
 
 # Run image
 
@@ -12,7 +12,7 @@ automatically:
 docker run -it --rm \
   --cap-add=NET_ADMIN --cap-add=NET_RAW \
   -v ~/local-workspace:/workspace \
-  ralph-claude-code:20260302 \
+  claude-code-sandbox:20260302 \
   bash
 
 Then run the in-container steps below in order.
