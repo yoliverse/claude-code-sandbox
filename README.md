@@ -192,6 +192,30 @@ Override with `--build-arg`:
 docker build . -t claude-code-sandbox:20260302 --build-arg CLAUDE_CODE_VERSION=2.1.152
 ```
 
+## Releases
+
+Tagged releases are built and published to the GitHub Container Registry by
+[`.github/workflows/release.yml`](.github/workflows/release.yml). Push a semver
+tag:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+This builds the image for `linux/amd64` and `linux/arm64`, pushes it to
+`ghcr.io/yoliverse/claude-code-sandbox` (tags `1.0.0`, `1.0`, `1`, and `latest`),
+and creates a GitHub Release with auto-generated notes. You can also run the
+workflow manually from the **Actions** tab. Then pull it:
+
+```bash
+docker pull ghcr.io/yoliverse/claude-code-sandbox:latest
+```
+
+The package inherits the repo's visibility (currently private), so run
+`docker login ghcr.io` first. No registry secrets are needed in CI — the workflow
+authenticates with the built-in `GITHUB_TOKEN`.
+
 ## Notes & caveats
 
 - **Don't run as root.** The image runs as the unprivileged `node` user; don't add
@@ -211,6 +235,8 @@ docker build . -t claude-code-sandbox:20260302 --build-arg CLAUDE_CODE_VERSION=2
 ## Repository layout
 
 ```
+.github/workflows/
+└── release.yml             build + publish image to GHCR on a vX.Y.Z tag
 Dockerfile                  image definition
 docker/                     files baked into the image
 ├── entrypoint.sh             seeds the global CLAUDE.md, then runs your command

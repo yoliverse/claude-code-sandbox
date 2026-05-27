@@ -14,6 +14,7 @@ Layout:
   - `claude-global.md` — Karpathy's coding-agent guidelines; baked in as the canonical `/usr/local/share/claude-global.md` and seeded into the config dir's `CLAUDE.md` at start by the entrypoint, so it applies to every project.
 - `scripts/` — host-side helpers (NOT in the image):
   - `migrate-session.sh` — copies a local session transcript into a mounted workspace so it can be `claude --resume`d in the container (keys it to the container working dir).
+- `.github/workflows/release.yml` — on a `vX.Y.Z` tag, builds the image (amd64+arm64 via buildx) and publishes it to GHCR (`ghcr.io/yoliverse/claude-code-sandbox`) using the built-in `GITHUB_TOKEN`, then cuts a GitHub Release. Also runnable via `workflow_dispatch`.
 
 ## Commands
 
