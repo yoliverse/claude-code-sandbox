@@ -75,7 +75,11 @@ for domain in \
     "statsig.com" \
     "marketplace.visualstudio.com" \
     "vscode.blob.core.windows.net" \
-    "update.code.visualstudio.com"; do
+    "update.code.visualstudio.com" \
+    "huggingface.co" \
+    "cdn-lfs.huggingface.co" \
+    "cdn-lfs-us-1.huggingface.co" \
+    "cdn-lfs-eu-1.huggingface.co"; do
     ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
     if [ -z "$ips" ]; then
         echo "WARNING: could not resolve $domain — skipping" >&2
