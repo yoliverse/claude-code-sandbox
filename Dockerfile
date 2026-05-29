@@ -22,6 +22,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   iproute2 \
   dnsutils \
   aggregate \
+  iputils-ping \
+  telnet \
+  traceroute \
+  netcat-openbsd \
+  net-tools \
+  lsof \
   jq \
   nano \
   vim \
@@ -89,7 +95,13 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
   -x
 
 # Install Claude
-RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
+RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} && \
+  npm cache clean --force
+
+# Install GitNexus (code-intelligence / knowledge-graph CLI + MCP server)
+ARG GITNEXUS_VERSION=latest
+RUN npm install -g gitnexus@${GITNEXUS_VERSION} && \
+  npm cache clean --force
 
 # Node toolchain: enable corepack (pnpm/yarn) and install global TypeScript tools.
 # Shims go into the node-owned npm-global bin (on PATH), not the root-owned /usr/local/bin.
