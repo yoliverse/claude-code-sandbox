@@ -187,7 +187,9 @@ under `/workspace/.claude/projects/`.
 - **Node** — `node`/`npm`/`npx`, plus `pnpm`/`yarn` (corepack) and
   `typescript`/`ts-node`/`tsx`.
 - **Tools** — `git`, `gh`, `git-delta`, `fzf`, `jq`, `zsh` (default shell),
-  `vim`/`nano`.
+  `vim`/`nano`, plus `gitnexus` (code-intelligence knowledge-graph CLI + MCP).
+- **System/network utilities** — `ping`, `telnet`, `traceroute`, `nc`
+  (netcat-openbsd), `net-tools` (`netstat`/`ifconfig`), `lsof`.
 
 ## Customizing the build
 
@@ -196,6 +198,7 @@ Override with `--build-arg`:
 | Arg                     | Default  | Purpose                              |
 | ----------------------- | -------- | ------------------------------------ |
 | `CLAUDE_CODE_VERSION`   | `latest` | Pin the Claude Code CLI version      |
+| `GITNEXUS_VERSION`      | `latest` | Pin the GitNexus CLI version         |
 | `PYTHON_VERSION`        | `3.12`   | Default CPython installed via uv     |
 | `GIT_DELTA_VERSION`     | `0.18.2` | git-delta version                    |
 | `ZSH_IN_DOCKER_VERSION` | `1.2.0`  | zsh-in-docker version                |
